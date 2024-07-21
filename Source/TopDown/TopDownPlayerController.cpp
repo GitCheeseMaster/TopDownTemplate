@@ -3,7 +3,7 @@
 #include "TopDownPlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "NiagaraSystem.h"
+#include "NiagaraSystem.h" 
 #include "NiagaraFunctionLibrary.h"
 #include "TopDownCharacter.h"
 #include "Engine/World.h"
@@ -53,6 +53,15 @@ void ATopDownPlayerController::SetupInputComponent()
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnTouchTriggered);
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnTouchReleased);
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnTouchReleased);
+
+		// Setup moveaction input events/bindings
+		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnInputStarted);
+		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnMoveActionOngoing);
+		// ETriggerEvent::Ongoing stopped working when I changed the InputAction from a Bool to Vector2D. Coulnd't find documentation either.
+		// EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Ongoing, this, &ATopDownPlayerController::OnMoveActionOngoing);
+		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnMoveActionReleased);
+		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnMoveActionReleased);
+		pMoveActionBinding = &EnhancedInputComponent->BindActionValue(MoveButtonAction);
 	}
 	else
 	{
@@ -70,7 +79,7 @@ void ATopDownPlayerController::OnSetDestinationTriggered()
 {
 	// We flag that the input is being pressed
 	FollowTime += GetWorld()->GetDeltaSeconds();
-	
+
 	// We look for the location in the world where the player has pressed the input
 	FHitResult Hit;
 	bool bHitSuccessful = false;
@@ -88,7 +97,7 @@ void ATopDownPlayerController::OnSetDestinationTriggered()
 	{
 		CachedDestination = Hit.Location;
 	}
-	
+
 	// Move towards mouse pointer or touch
 	APawn* ControlledPawn = GetPawn();
 	if (ControlledPawn != nullptr)
@@ -122,4 +131,23 @@ void ATopDownPlayerController::OnTouchReleased()
 {
 	bIsTouch = false;
 	OnSetDestinationReleased();
+}
+
+void ATopDownPlayerController::OnMoveActionOngoing()
+{
+	// Move forward
+	APawn* ControlledPawn = GetPawn();
+	if (ControlledPawn == nullptr)
+	{
+		return;
+	}
+	auto input = pMoveActionBinding->GetValue().Get<FVector2D>();
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, input.ToString());
+	FVector move_direction(input.Y,input.X,0.0);
+	ControlledPawn->AddMovementInput(move_direction, 1.0, false);
+}
+
+void ATopDownPlayerController::OnMoveActionReleased()
+{
+	StopMovement();
 }
