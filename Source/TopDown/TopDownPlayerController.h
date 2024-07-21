@@ -7,10 +7,12 @@
 #include "GameFramework/PlayerController.h"
 #include "TopDownPlayerController.generated.h"
 
+
 /** Forward declaration to improve compiling times */
 class UNiagaraSystem;
 class UInputMappingContext;
 class UInputAction;
+struct FEnhancedInputActionValueBinding;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
@@ -19,35 +21,42 @@ class ATopDownPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
+	/** Blueprint Data */
 public:
-	ATopDownPlayerController();
 
 	/** Time Threshold to know if it was a short press */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
-	float ShortPressThreshold;
+	float ShortPressThreshold = 0.f;
 
 	/** FX Class that we will spawn when clicking */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
-	UNiagaraSystem* FXCursor;
+	UNiagaraSystem* FXCursor = nullptr;
 
 	/** MappingContext */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	UInputMappingContext* DefaultMappingContext;
-	
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	UInputAction* SetDestinationClickAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputMappingContext* DefaultMappingContext = nullptr;
 
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	UInputAction* SetDestinationTouchAction;
+	/** Set Desintation Click Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SetDestinationClickAction = nullptr;
+
+	/** Set Desintation Click Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SetDestinationTouchAction = nullptr;
+
+	/** Move Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* MoveButtonAction = nullptr;
+
+
+public:
+	ATopDownPlayerController();
 
 protected:
-	/** True if the controlled character should navigate to the mouse cursor. */
-	uint32 bMoveToMouseCursor : 1;
+
 
 	virtual void SetupInputComponent() override;
-	
+
 	// To add mapping context
 	virtual void BeginPlay();
 
@@ -58,11 +67,19 @@ protected:
 	void OnTouchTriggered();
 	void OnTouchReleased();
 
-private:
-	FVector CachedDestination;
+	void OnMoveActionOngoing();
+	void OnMoveActionReleased();
 
-	bool bIsTouch; // Is it a touch device
-	float FollowTime; // For how long it has been pressed
+protected:
+
+	/** True if the controlled character should navigate to the mouse cursor. */
+	uint32 bMoveToMouseCursor : 1;
+
+private:
+	FVector CachedDestination = FVector::Zero();
+	FEnhancedInputActionValueBinding* pMoveActionBinding = nullptr;
+	bool bIsTouch = false; // Is it a touch device
+	float FollowTime = 0.f; // For how long it has been pressed
 };
 
 
