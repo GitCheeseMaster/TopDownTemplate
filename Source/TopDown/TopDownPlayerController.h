@@ -24,62 +24,52 @@ class ATopDownPlayerController : public APlayerController
 	/** Blueprint Data */
 public:
 
-	/** Time Threshold to know if it was a short press */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
-	float ShortPressThreshold = 0.f;
-
-	/** FX Class that we will spawn when clicking */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
-	UNiagaraSystem* FXCursor = nullptr;
-
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext = nullptr;
 
-	/** Set Desintation Click Action */
+	/** Look Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SetDestinationClickAction = nullptr;
-
-	/** Set Desintation Click Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SetDestinationTouchAction = nullptr;
+	UInputAction* LookAction = nullptr;
 
 	/** Move Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveButtonAction = nullptr;
 
+	/** Jump Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* JumpButtonAction = nullptr;
 
 public:
 	ATopDownPlayerController();
 
 protected:
 
-
 	virtual void SetupInputComponent() override;
 
 	// To add mapping context
 	virtual void BeginPlay();
-
-	/** Input handlers for SetDestination action. */
-	void OnInputStarted();
-	void OnSetDestinationTriggered();
-	void OnSetDestinationReleased();
-	void OnTouchTriggered();
-	void OnTouchReleased();
-
-	void OnMoveActionOngoing();
+	
+	/** Input handlers action. */
+	
+	// Look
+	void OnLookActionTriggered();
+	// Move
+	void OnMoveActionStarted();
+	void OnMoveActionTriggered();
 	void OnMoveActionReleased();
+	// Jump
+	void OnJumpActionStarted();
+	void OnJumpActionTriggered();
+	void OnJumpActionReleased();
 
-protected:
-
-	/** True if the controlled character should navigate to the mouse cursor. */
-	uint32 bMoveToMouseCursor : 1;
+	
 
 private:
-	FVector CachedDestination = FVector::Zero();
+	FEnhancedInputActionValueBinding* pLookActionBinding = nullptr;
 	FEnhancedInputActionValueBinding* pMoveActionBinding = nullptr;
-	bool bIsTouch = false; // Is it a touch device
-	float FollowTime = 0.f; // For how long it has been pressed
+
+
 };
 
 
