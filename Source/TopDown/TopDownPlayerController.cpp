@@ -1,25 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TopDownPlayerController.h"
-#include "GameFramework/Pawn.h"
-#include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "NiagaraSystem.h" 
-#include "NiagaraFunctionLibrary.h"
-#include "TopDownCharacter.h"
-#include "Engine/World.h"
 #include "EnhancedInputComponent.h"
-#include "InputActionValue.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputActionValue.h"
+#include "JetPackComponent.h"
+#include "MathUtility.h"
+#include "TopDownCharacter.h"
+#include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "GameFramework/MovementComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 ATopDownPlayerController::ATopDownPlayerController()
 {
-	bShowMouseCursor = true;
-	DefaultMouseCursor = EMouseCursor::Default;
-	CachedDestination = FVector::ZeroVector;
-	FollowTime = 0.f;
+	// Hide the mouse cursor
+	bShowMouseCursor = false;
 }
 
 void ATopDownPlayerController::BeginPlay()
@@ -42,26 +41,19 @@ void ATopDownPlayerController::SetupInputComponent()
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		// Setup mouse input events
-		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnInputStarted);
-		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnSetDestinationTriggered);
-		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnSetDestinationReleased);
-		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnSetDestinationReleased);
-
-		// Setup touch input events
-		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnInputStarted);
-		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnTouchTriggered);
-		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnTouchReleased);
-		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnTouchReleased);
-
 		// Setup moveaction input events/bindings
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnInputStarted);
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnMoveActionOngoing);
-		// ETriggerEvent::Ongoing stopped working when I changed the InputAction from a Bool to Vector2D. Coulnd't find documentation either.
-		// EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Ongoing, this, &ATopDownPlayerController::OnMoveActionOngoing);
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnMoveActionReleased);
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnMoveActionReleased);
+
+		// Look Action
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnLookActionTriggered);
+		pLookActionBinding = &EnhancedInputComponent->BindActionValue(LookAction);
+		// Move Action
+		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnMoveActionTriggered);
 		pMoveActionBinding = &EnhancedInputComponent->BindActionValue(MoveButtonAction);
+		// Jump Action
+		EnhancedInputComponent->BindAction(JumpButtonAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnJumpActionStarted);
+		EnhancedInputComponent->BindAction(JumpButtonAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnJumpActionTriggered);
+		EnhancedInputComponent->BindAction(JumpButtonAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnJumpActionReleased);
+		EnhancedInputComponent->BindAction(JumpButtonAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnJumpActionReleased);
 	}
 	else
 	{
@@ -69,85 +61,93 @@ void ATopDownPlayerController::SetupInputComponent()
 	}
 }
 
-void ATopDownPlayerController::OnInputStarted()
+void ATopDownPlayerController::OnMoveActionTriggered()
 {
-	StopMovement();
-}
-
-// Triggered every frame when the input is held down
-void ATopDownPlayerController::OnSetDestinationTriggered()
-{
-	// We flag that the input is being pressed
-	FollowTime += GetWorld()->GetDeltaSeconds();
-
-	// We look for the location in the world where the player has pressed the input
-	FHitResult Hit;
-	bool bHitSuccessful = false;
-	if (bIsTouch)
-	{
-		bHitSuccessful = GetHitResultUnderFinger(ETouchIndex::Touch1, ECollisionChannel::ECC_Visibility, true, Hit);
-	}
-	else
-	{
-		bHitSuccessful = GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, true, Hit);
-	}
-
-	// If we hit a surface, cache the location
-	if (bHitSuccessful)
-	{
-		CachedDestination = Hit.Location;
-	}
-
-	// Move towards mouse pointer or touch
-	APawn* ControlledPawn = GetPawn();
-	if (ControlledPawn != nullptr)
-	{
-		FVector WorldDirection = (CachedDestination - ControlledPawn->GetActorLocation()).GetSafeNormal();
-		ControlledPawn->AddMovementInput(WorldDirection, 1.0, false);
-	}
-}
-
-void ATopDownPlayerController::OnSetDestinationReleased()
-{
-	// If it was a short press
-	if (FollowTime <= ShortPressThreshold)
-	{
-		// We move there and spawn some particles
-		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CachedDestination);
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, CachedDestination, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
-	}
-
-	FollowTime = 0.f;
-}
-
-// Triggered every frame when the input is held down
-void ATopDownPlayerController::OnTouchTriggered()
-{
-	bIsTouch = true;
-	OnSetDestinationTriggered();
-}
-
-void ATopDownPlayerController::OnTouchReleased()
-{
-	bIsTouch = false;
-	OnSetDestinationReleased();
-}
-
-void ATopDownPlayerController::OnMoveActionOngoing()
-{
-	// Move forward
-	APawn* ControlledPawn = GetPawn();
-	if (ControlledPawn == nullptr)
+	if (pMoveActionBinding == nullptr)
 	{
 		return;
 	}
-	auto input = pMoveActionBinding->GetValue().Get<FVector2D>();
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, input.ToString());
-	FVector move_direction(input.Y,input.X,0.0);
-	ControlledPawn->AddMovementInput(move_direction, 1.0, false);
+
+	ATopDownCharacter* ControlledCharacter = CastChecked< ATopDownCharacter >(GetCharacter());
+
+	if (ControlledCharacter == nullptr)
+	{
+		return;
+	}
+
+	// Move
+	FVector2D Input = pMoveActionBinding->GetValue().Get<FVector2D>();
+	FVector MoveDirection(Input.Y, Input.X, 0.0);
+	ControlledCharacter->AddMovementInput(MoveDirection, 1.0, false);
+
+	// Update the JetPack inputs
+	if (UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent())
+	{
+		JetPackComponent->UpdateHorizontalInput(MoveDirection);
+	}
 }
 
-void ATopDownPlayerController::OnMoveActionReleased()
+void ATopDownPlayerController::OnJumpActionStarted()
 {
-	StopMovement();
+	ACharacter* ControlledCharacter = GetCharacter();
+	if (ControlledCharacter == nullptr)
+	{
+		return;
+	}
+	ControlledCharacter->Jump();
+}
+
+void ATopDownPlayerController::OnJumpActionTriggered()
+{
+	ATopDownCharacter* ControlledCharacter = CastChecked< ATopDownCharacter >(GetCharacter());
+	if (ControlledCharacter == nullptr)
+	{
+		return;
+	}
+
+	// Activate the JetPack if possible
+	if (UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent()) {
+		if (!JetPackComponent->IsJetPackActive())
+		{
+			if (JetPackComponent->ActivateJetPack())
+			{
+				ControlledCharacter->StopJumping();
+			}
+		}
+	}
+}
+
+void ATopDownPlayerController::OnJumpActionReleased()
+{
+	ATopDownCharacter* ControlledCharacter = CastChecked< ATopDownCharacter >(GetCharacter());
+	if (ControlledCharacter == nullptr)
+	{
+		return;
+	}
+
+	if (UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent()) {
+		JetPackComponent->DeactivateJetPack();
+	}
+}
+
+void ATopDownPlayerController::OnLookActionTriggered()
+{
+	if (pLookActionBinding == nullptr)
+	{
+		return;
+	}
+
+	// Check the input, if not significant keep previous rotation
+	auto InputRaw = pLookActionBinding->GetValue().Get<FVector2D>();
+	auto Input = InputRaw.GetSafeNormal(0.1);
+	if (Input.IsZero())
+	{
+		return;
+	}
+
+	// Make the pawn look toward input direction
+	// @todo The Camera is fixed currently, but if it were to change angle we would need to account for that in these calculation
+	float LerpAmount = 0.1;
+	auto TargetAngle = FMath::RadiansToDegrees(FMath::Atan2(Input.X, Input.Y));
+	ControlRotation.Yaw = IMathUtility::LerpAngle(ControlRotation.Yaw, TargetAngle, 0.1);
 }
