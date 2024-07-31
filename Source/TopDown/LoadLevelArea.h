@@ -6,6 +6,11 @@
 #include "GameFramework/Actor.h"
 #include "LoadLevelArea.generated.h"
 
+/**
+ *	LoadLevelArea class
+ *  Loads the desired level when the player enter it's collision
+ *  The level name can be set per instance
+ */
 UCLASS()
 class TOPDOWN_API ALoadLevelArea : public AActor
 {

@@ -1,26 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TopDownPlayerController.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/MovementComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "TopDownCharacter.h"
-#include "Engine/World.h"
 #include "EnhancedInputComponent.h"
-#include "InputActionValue.h"
 #include "EnhancedInputSubsystems.h"
-#include "Engine/LocalPlayer.h"
+#include "InputActionValue.h"
 #include "JetPackComponent.h"
 #include "MathUtility.h"
-
+#include "TopDownCharacter.h"
+#include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "GameFramework/MovementComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 ATopDownPlayerController::ATopDownPlayerController()
 {
+	// Hide the mouse cursor
 	bShowMouseCursor = false;
-	DefaultMouseCursor = EMouseCursor::Default;
 }
 
 void ATopDownPlayerController::BeginPlay()
@@ -48,15 +46,9 @@ void ATopDownPlayerController::SetupInputComponent()
 		// Look Action
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnLookActionTriggered);
 		pLookActionBinding = &EnhancedInputComponent->BindActionValue(LookAction);
-
 		// Move Action
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnMoveActionStarted);
 		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnMoveActionTriggered);
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Completed, this, &ATopDownPlayerController::OnMoveActionReleased);
-		EnhancedInputComponent->BindAction(MoveButtonAction, ETriggerEvent::Canceled, this, &ATopDownPlayerController::OnMoveActionReleased);
 		pMoveActionBinding = &EnhancedInputComponent->BindActionValue(MoveButtonAction);
-
-
 		// Jump Action
 		EnhancedInputComponent->BindAction(JumpButtonAction, ETriggerEvent::Started, this, &ATopDownPlayerController::OnJumpActionStarted);
 		EnhancedInputComponent->BindAction(JumpButtonAction, ETriggerEvent::Triggered, this, &ATopDownPlayerController::OnJumpActionTriggered);
@@ -67,11 +59,6 @@ void ATopDownPlayerController::SetupInputComponent()
 	{
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
-}
-
-void ATopDownPlayerController::OnMoveActionStarted()
-{
-
 }
 
 void ATopDownPlayerController::OnMoveActionTriggered()
@@ -94,13 +81,10 @@ void ATopDownPlayerController::OnMoveActionTriggered()
 	ControlledCharacter->AddMovementInput(MoveDirection, 1.0, false);
 
 	// Update the JetPack inputs
-	UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent();
-	JetPackComponent->UpdateHorizontalInput(MoveDirection);
-}
-void ATopDownPlayerController::OnMoveActionReleased()
-{
-
-
+	if (UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent())
+	{
+		JetPackComponent->UpdateHorizontalInput(MoveDirection);
+	}
 }
 
 void ATopDownPlayerController::OnJumpActionStarted()
@@ -122,12 +106,13 @@ void ATopDownPlayerController::OnJumpActionTriggered()
 	}
 
 	// Activate the JetPack if possible
-	UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent();
-	if (!JetPackComponent->IsJetPackActive())
-	{
-		if (JetPackComponent->ActivateJetPack())
+	if (UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent()) {
+		if (!JetPackComponent->IsJetPackActive())
 		{
-			ControlledCharacter->StopJumping();
+			if (JetPackComponent->ActivateJetPack())
+			{
+				ControlledCharacter->StopJumping();
+			}
 		}
 	}
 }
@@ -140,8 +125,9 @@ void ATopDownPlayerController::OnJumpActionReleased()
 		return;
 	}
 
-	UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent();
-	JetPackComponent->DeactivateJetPack();
+	if (UJetPackComponent* JetPackComponent = ControlledCharacter->GetJetPackComponent()) {
+		JetPackComponent->DeactivateJetPack();
+	}
 }
 
 void ATopDownPlayerController::OnLookActionTriggered()

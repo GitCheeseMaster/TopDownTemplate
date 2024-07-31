@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "LoadLevelArea.h"
 #include "TopDownCharacter.h"
 #include "Components/BoxComponent.h"
@@ -48,11 +47,5 @@ void ALoadLevelArea::OnBeginOverlap(
 		FLatentActionInfo LatentInfo;
 		UGameplayStatics::OpenLevel(this, LevelToLoad);
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.0, FColor::Yellow, OtherActor->GetName());
-
-	}
-
 }
 

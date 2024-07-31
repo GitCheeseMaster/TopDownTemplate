@@ -10,30 +10,24 @@ UJetPackComponent::UJetPackComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
-	DesiredImpulse = FVector::Zero();
-
-	Fuel = MaximumFuel;
+	// Initialize variables
 	State = EJetPackState::Standby;
+	Fuel = MaximumFuel;
 	CooldownTimer = 0.f;
+	HorizontalInput = FVector::Zero();
+	DesiredImpulse = FVector::Zero();
 }
 
 // Called when the game starts
 void UJetPackComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	// Get Attached Actors
-	TArray< AActor* > AttachedActors;
-	GetOwner()->GetAttachedActors(AttachedActors);
-
-	// Cached all the Niagara Components of attached actors
-	for (AActor* Actor : AttachedActors)
+	// Cached all Niagara Components
+	for (UActorComponent* Component : GetOwner()->GetComponents())
 	{
-		for (UActorComponent* Component : Actor->GetComponents())
+		if (UNiagaraComponent* NiagaraComponent = Cast< UNiagaraComponent >(Component))
 		{
-			if (UNiagaraComponent* NiagaraComponent = Cast< UNiagaraComponent >(Component))
-			{
-				AttachedNiagaraComponents.Add(NiagaraComponent);
-			}
+			NiagaraComponents.Add(NiagaraComponent);
 		}
 	}
 }
@@ -43,8 +37,10 @@ void UJetPackComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// Clear the previously desired impulse
 	DesiredImpulse = FVector::Zero();
 
+	// Update by state
 	switch (State)
 	{
 
@@ -96,18 +92,11 @@ void UJetPackComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 	// Clear the old inputs
 	HorizontalInput = FVector::Zero();
-
-	/*if (GEngine)
-		GEngine->AddOnScreenDebugMessage(-1, 0.0, FColor::Yellow, FString::Printf(TEXT("Fuel %.2f"), Fuel));
-
-	if (GEngine)
-		GEngine->AddOnScreenDebugMessage(-1, 0.0, FColor::Yellow, UEnum::GetValueAsString(State));*/
-
 }
 
 bool UJetPackComponent::ActivateJetPack()
 {
-	if (State == EJetPackState::Standby && Fuel > MinimumFuelRequiredToActivate )
+	if (State == EJetPackState::Standby && Fuel > MinimumFuelRequiredToActivate)
 	{
 		State = EJetPackState::Active;
 		ActivateJetPackEffects(true);
@@ -127,12 +116,12 @@ void UJetPackComponent::DeactivateJetPack()
 void UJetPackComponent::ActivateJetPackEffects(bool bActive)
 {
 
-	if (AttachedNiagaraComponents.Num() <= 0)
+	if (NiagaraComponents.Num() <= 0)
 	{
 		return;
 	}
 
-	for (UNiagaraComponent* NiagaraComponent : AttachedNiagaraComponents) {
+	for (UNiagaraComponent* NiagaraComponent : NiagaraComponents) {
 		if (bActive)
 		{
 			NiagaraComponent->Activate();

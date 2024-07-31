@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "JetPackComponent.h"
 #include "TopDownCharacter.h"
+#include "JetPackComponent.h"
 #include "TopDownPlayerHUD.h"
 #include "MathUtil.h"
 #include "Blueprint/UserWidget.h"
@@ -37,9 +37,6 @@ ATopDownCharacter::ATopDownCharacter()
 	TopDownCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCameraComponent->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Create a JetPack component...
-	JetPackComponent = CreateDefaultSubobject<UJetPackComponent>(TEXT("JetPack"));
-
 	// HUD var intialization
 	TopDownPlayerHUDClass = nullptr;
 	TopDownPlayerHUD = nullptr;
@@ -52,12 +49,30 @@ ATopDownCharacter::ATopDownCharacter()
 void ATopDownCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
 	// Create HUD
 	ATopDownPlayerController* TopDownPlayerController = GetController< ATopDownPlayerController >();
 	TopDownPlayerHUD = CreateWidget< UTopDownPlayerHUD >(TopDownPlayerController, TopDownPlayerHUDClass);
 	if (TopDownPlayerHUD != nullptr) {
 		TopDownPlayerHUD->AddToPlayerScreen();
 	}
+
+	// Search for JetPackComponent in Attached Actors
+	TArray< AActor* > AttachedActors;
+	GetAttachedActors(AttachedActors);
+
+	// Cached all the Niagara Components of attached actors
+	for (AActor* Actor : AttachedActors)
+	{
+		for (UActorComponent* Component : Actor->GetComponents())
+		{
+			if (UJetPackComponent* JetPackComponent = Cast< UJetPackComponent >(Component))
+			{
+				AttachedJetPackComponent = JetPackComponent;
+			}
+		}
+	}
+
 }
 
 void ATopDownCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -82,18 +97,18 @@ void ATopDownCharacter::Tick(float DeltaSeconds)
 	}
 
 	// Apply the Jetpacks requested impulse to the CharacterMovementComponent if active
-	if (JetPackComponent != nullptr)
+	if (AttachedJetPackComponent != nullptr)
 	{
-		if (JetPackComponent->IsJetPackActive())
+		if (AttachedJetPackComponent->IsJetPackActive())
 		{
 			CharacterMovementComponent->SetMovementMode(EMovementMode::MOVE_Flying);
-			CharacterMovementComponent->AddImpulse(JetPackComponent->GetDesiredImpulse(), true);
+			CharacterMovementComponent->AddImpulse(AttachedJetPackComponent->GetDesiredImpulse(), true);
 		}
 		else if (CharacterMovementComponent->MovementMode == EMovementMode::MOVE_Flying)
 		{
 			CharacterMovementComponent->SetMovementMode(EMovementMode::MOVE_Falling);
 		}
 
-		TopDownPlayerHUD->SetFuel(JetPackComponent->GetFuel(), JetPackComponent->GetMaximumFuel());
+		TopDownPlayerHUD->SetFuel(AttachedJetPackComponent->GetFuel(), AttachedJetPackComponent->GetMaximumFuel());
 	}
 }

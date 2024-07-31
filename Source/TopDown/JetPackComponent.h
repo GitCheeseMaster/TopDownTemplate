@@ -6,7 +6,6 @@
 #include "Components/ActorComponent.h"
 #include "JetPackComponent.generated.h"
 
-
 /** InternalState for JetPack */
 UENUM()
 enum class EJetPackState : uint8
@@ -16,6 +15,12 @@ enum class EJetPackState : uint8
 	Cooldown,
 };
 
+/**
+ *	Jet Pack Component Class.
+ *  Calculates a desired impulse from inputs and state
+ *  The impulse vector is to be used as desired externally
+ *   keeping this class encapsulated and it's funtionality kept to the bare minimum
+ */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class TOPDOWN_API UJetPackComponent : public UActorComponent
 {
@@ -25,7 +30,7 @@ class TOPDOWN_API UJetPackComponent : public UActorComponent
 public:
 
 	UPROPERTY(Category = "JetPack", EditAnywhere, BlueprintReadWrite)
-	float MaximumFuel = 100.f;
+	float MaximumFuel = 105.f;
 
 	UPROPERTY(Category = "JetPack", EditAnywhere, BlueprintReadWrite)
 	float FuelDecayRate = 0.5f;
@@ -34,13 +39,13 @@ public:
 	float RefuelRate = 0.6f;
 
 	UPROPERTY(Category = "JetPack", EditAnywhere, BlueprintReadWrite)
-	float MinimumFuelRequiredToActivate = MaximumFuel / 10.f;
+	float MinimumFuelRequiredToActivate = 10.f;
 
 	UPROPERTY(Category = "JetPack", EditAnywhere, BlueprintReadWrite)
-	float VerticalImpulseStrength = 5.0f;
+	float VerticalImpulseStrength = 5.35f;
 
 	UPROPERTY(Category = "JetPack", EditAnywhere, BlueprintReadWrite)
-	float HorizontalImpulseStrength = 5.0f;
+	float HorizontalImpulseStrength = 5.1f;
 
 	UPROPERTY(Category = "JetPack", EditAnywhere, BlueprintReadWrite)
 	float CooldownTime = 1.0f;
@@ -68,12 +73,12 @@ public:
 	{
 		HorizontalInput = input;
 	}
-
+	// Gets the remaining amount of fuel
 	float GetFuel() const
 	{
 		return Fuel;
 	}
-
+	// Gets the maximum amount of fuel
 	float GetMaximumFuel() const
 	{
 		return MaximumFuel;
@@ -91,9 +96,8 @@ private:
 	// Activate the Niagara Compoents of Attached Actors
 	void ActivateJetPackEffects(bool bActive);
 
-
 private:
-	TArray< class UNiagaraComponent* > AttachedNiagaraComponents;
+	TArray< class UNiagaraComponent* > NiagaraComponents;
 	EJetPackState State;
 	float Fuel;
 	float CooldownTimer;

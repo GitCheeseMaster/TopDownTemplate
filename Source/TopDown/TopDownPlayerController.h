@@ -7,7 +7,6 @@
 #include "GameFramework/PlayerController.h"
 #include "TopDownPlayerController.generated.h"
 
-
 /** Forward declaration to improve compiling times */
 class UNiagaraSystem;
 class UInputMappingContext;
@@ -16,6 +15,12 @@ struct FEnhancedInputActionValueBinding;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
+/**
+ *	TopDownPlayerController class
+ *  The class to control our player character
+ *  Tries to activate the players Jet Pack if one exists during jumping
+ *  Otherwise a normal jump will be exectued
+ */
 UCLASS()
 class ATopDownPlayerController : public APlayerController
 {
@@ -50,20 +55,14 @@ protected:
 	// To add mapping context
 	virtual void BeginPlay();
 	
-	/** Input handlers action. */
-	
 	// Look
 	void OnLookActionTriggered();
 	// Move
-	void OnMoveActionStarted();
 	void OnMoveActionTriggered();
-	void OnMoveActionReleased();
 	// Jump
 	void OnJumpActionStarted();
 	void OnJumpActionTriggered();
 	void OnJumpActionReleased();
-
-	
 
 private:
 	FEnhancedInputActionValueBinding* pLookActionBinding = nullptr;

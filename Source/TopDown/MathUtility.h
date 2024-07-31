@@ -14,7 +14,8 @@ class UMathUtility : public UInterface
 };
 
 /**
- * 
+ *	Math Utiltiy class
+ *  Used to add functionality that doesn't exist in FMath
  */
 class TOPDOWN_API IMathUtility
 {

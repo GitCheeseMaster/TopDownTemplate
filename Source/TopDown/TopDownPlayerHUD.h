@@ -7,7 +7,8 @@
 #include "TopDownPlayerHUD.generated.h"
 
 /**
- * 
+ *	HUD class for the TopDownPlayer
+ *	Hold the ProgressBar that represents the fuel bar
  */
 UCLASS()
 class TOPDOWN_API UTopDownPlayerHUD : public UUserWidget
